@@ -32,26 +32,12 @@ def predict():
 		message = request.form['message']
 		data = [message]
 		
-		
+		my_prediction = train_multinomial_nb(data)
 
-		
-		if(os.path.isfile('models/sms_spam_nb_model.pkl') == False):
-			print()
-			print("Creating Naive Bayes Model.....")
-			train_multinomial_nb()
+	return render_template('result.html',prediction = my_prediction) 
 
-		print('Loading Pickle File...')
+def train_multinomial_nb(data):
 
-		
-		nb_detector = cPickle.load(open('models/sms_spam_nb_model.pkl','rb'))
-		nb = list(map(float,nb_detector)),10
-		my_prediction = nb.predict([data])
-
-	print('Results are available...')
-	return render_template('result.html',prediction = my_prediction)
-
-
-def train_multinomial_nb():
 	print('Training the Model...')
 	df= pd.read_csv("spam.csv", encoding="latin-1")
 	df.drop(['Unnamed: 2', 'Unnamed: 3', 'Unnamed: 4'], axis=1, inplace=True)
@@ -60,7 +46,8 @@ def train_multinomial_nb():
 	X = df['message']
 	y = df['label']
 
-	
+	cv = CountVectorizer()
+	X = cv.fit_transform(X)
 
 	msg_train, msg_test, label_train, label_test = train_test_split(X, y, test_size=0.2)
 
@@ -68,24 +55,20 @@ def train_multinomial_nb():
 	clf = MultinomialNB()
 
 	nb_detector = clf.fit(msg_train, label_train)
+	predictions = clf.predict(msg_test)
 
-	predictions = nb_detector.predict(msg_test)
+	vect = cv.transform(data).toarray()
 
-	print(":: Confusion Matrix")
-	print()
-	print(confusion_matrix(label_test, predictions))
-	print()
-	print(":: Classification Report")
-	print()
-	print(classification_report(label_test, predictions))
+	my_prediction = nb_detector.predict(vect)
 	
-	# save model to pickle file
-	print('Creating Pickle file')
-	file_name = 'models/sms_spam_nb_model.pkl'
-	with open(file_name, 'wb') as fout:
-		cPickle.dump(nb_detector, fout)
-	print('model written to: ' + file_name)
+	from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 	
+	print('Accuracy score: ', format(accuracy_score(label_test, predictions)))
+	print('Precision score: ', format(precision_score(label_test, predictions)))
+	print('Recall score: ', format(recall_score(label_test, predictions)))
+	print('F1 score: ', format(f1_score(label_test, predictions)))
+	
+	return my_prediction
 
 
 if __name__ == '__main__':
